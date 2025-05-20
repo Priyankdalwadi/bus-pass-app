@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bus Pass Application with 3D Background</title>
+<style>
+  body, html {
+    margin: 0; padding: 0; height: 100%;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #0e0e0e;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* Background video container */
+  #background-video {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: -2; /* behind 3D icons and form */
+    filter: brightness(0.6); /* dim for readability */
+  }
+
+  #background-3d {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; /* clicks pass through */
+    perspective: 800px;
+    overflow: visible;
+    z-index: -1; /* above video, below form */
+  }
+
+  .icon {
+    position: absolute;
+    font-size: 2.5rem;
+    user-select: none;
+    will-change: transform;
+    opacity: 0.8;
+    filter: drop-shadow(0 0 2px #00ffa8);
+  }
+
+  .form-container {
+    background: rgba(20, 20, 20, 0.85);
+    padding: 30px 40px;
+    border-radius: 15px;
+    box-shadow: 0 0 25px #00ffa8aa;
+    width: 360px;
+    z-index: 10; /* on top */
+    position: relative;
+  }
+
+  .form-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #00ffa8;
+    text-shadow: 0 0 8px #00ffa8;
+  }
+
+  input, button {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 10px;
+    border: none;
+    font-size: 1rem;
+  }
+
+  input {
+    background-color: #222;
+    color: #eee;
+  }
+
+  input::placeholder {
+    color: #999;
+  }
+
+  button {
+    background: #00ffa8;
+    color: #0a0a0a;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+
+  button:hover {
+    background: #00cc82;
+  }
+
+  .status {
+    margin-top: 15px;
+    font-weight: bold;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+ <video id="background-video" autoplay muted loop playsinline>
+    <source src="videos/mountain-bus.mp4" type="video/mp4" />
+    Your browser does not support the video tag.
+  </video>
+
+  <div id="background-3d"></div>
+
+  <div class="form-container">
+    <h2>Apply for Bus Pass</h2>
+    <form id="passForm">
+      <input type="text" name="name" placeholder="Full Name" required />
+      <input type="email" name="email" placeholder="Email" required />
+      <input type="text" name="studentId" placeholder="Student ID" required />
+      <input type="text" name="college" placeholder="College Name" required />
+      <input type="text" name="passType" placeholder="Pass Type (Monthly, Yearly...)" required />
+      <input type="date" name="validFrom" placeholder="Valid From" required />
+      <input type="date" name="validTo" placeholder="Valid To" required />
+      <button type="submit">Submit</button>
+    </form>
+    <div class="status" id="statusMsg"></div>
+  </div>
+
+<script>
+  const icons = ['🐶', '🐱', '🐰', '🦊', '🐼', '🐸', '🐵', '🐥', '🐙', '🦄'];
+  const container = document.getElementById('background-3d');
+  const numIcons = 25;
+  const iconElements = [];
+
+  for (let i = 0; i < numIcons; i++) {
+    const iconEl = document.createElement('div');
+    iconEl.classList.add('icon');
+    iconEl.textContent = icons[Math.floor(Math.random() * icons.length)];
+
+    iconEl.style.transform = randomTransform();
+    container.appendChild(iconEl);
+    iconElements.push({
+      el: iconEl,
+      angleX: Math.random() * 360,
+      angleY: Math.random() * 360,
+      distanceZ: Math.random() * 300 + 100,
+      speedX: (Math.random() * 0.02) + 0.001,
+      speedY: (Math.random() * 0.02) + 0.001
+    });
+  }
+
+  function randomTransform() {
+    const x = (Math.random() - 0.5) * window.innerWidth;
+    const y = (Math.random() - 0.5) * window.innerHeight;
+    const z = (Math.random() * 300) + 100;
+    return `translate3d(${x}px, ${y}px, ${z}px)`;
+  }
+
+  function animate() {
+    iconElements.forEach(icon => {
+      icon.angleX += icon.speedX;
+      icon.angleY += icon.speedY;
+      const radX = icon.angleX * Math.PI / 180;
+      const radY = icon.angleY * Math.PI / 180;
+
+      const x = Math.cos(radX) * 200;
+      const y = Math.sin(radY) * 150;
+      const z = icon.distanceZ;
+
+      icon.el.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateX(${icon.angleX}deg) rotateY(${icon.angleY}deg)`;
+    });
+
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  document.getElementById('passForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+      name: form.name.value,
+      email: form.email.value,
+      studentId: form.studentId.value,
+      college: form.college.value,
+      passType: form.passType.value,
+      validFrom: form.validFrom.value,
+      validTo: form.validTo.value,
+    };
+
+    try {
+      const res = await fetch('/api/pass/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await res.json();
+      const statusMsg = document.getElementById('statusMsg');
+      if (res.ok) {
+        statusMsg.textContent = "✅ Pass created successfully!";
+        statusMsg.style.color = "#00ffa8";
+        form.reset();
+      } else {
+        statusMsg.textContent = "❌ Error: " + (result.details || result.error);
+        statusMsg.style.color = "#ff5555";
+      }
+    } catch (error) {
+      document.getElementById('statusMsg').textContent = "❌ Request failed: " + error.message;
+    }
+  });
+</script>
+</body>
+</html>
